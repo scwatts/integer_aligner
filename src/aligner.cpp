@@ -1,3 +1,8 @@
+#include <vector>
+#include <string>
+#include <cstdio>
+
+
 #include <seqan/graph_msa.h>
 #include <seqan/basic.h>
 
@@ -5,80 +10,114 @@
 #include "aligner_opts.h"
 
 
+#define MAXLINESZ 20480
+
+
+// Define seqan-compatible type
+struct IntegerType_ {};
+typedef seqan::SimpleType<uint16_t, IntegerType_> IntegerType;
+typedef seqan::String<IntegerType> IntegerString;
+
+struct IntegerSequence {
+    std::string name;
+    std::vector<uint16_t> data;
+};
+
+// Function declarations
+std::vector<IntegerSequence> read_integer_sequences_from_file(const std::string &input_fp);
+seqan::StringSet<IntegerString> prepare_alignment_data(const std::vector<IntegerSequence> &integer_sequences);
+seqan::Align<IntegerString> perform_alignment(seqan::StringSet<IntegerString> &integer_set);
+void write_alignment(const seqan::Align<IntegerString> &alignment, const std::vector<IntegerSequence> &integer_sequences, const std::string &output_fp);
+
 
 int main(int argc, char *argv[]) {
     // Get command line arguments
     arguments::Arguments args = arguments::get_arguments(argc, argv);
+    // Read integer sequences from file and prepare alignment data
+    std::vector<IntegerSequence> integer_sequences = read_integer_sequences_from_file(args.input_fp);
+    seqan::StringSet<IntegerString> integer_set = prepare_alignment_data(integer_sequences);
+    // Perform alignment and write out
+    seqan::Align<IntegerString> alignment = perform_alignment(integer_set);
+    write_alignment(alignment, integer_sequences, args.output_fp);
+    return 0;
+}
 
-
-    // Prepare integer sequences for alignment
-    struct Int_ {};
-    typedef seqan::SimpleType<uint16_t, Int_> Int;
-    typedef seqan::String<Int> IntString;
-
-    std::vector<uint16_t> val_a = {1,8,7,7,7,7,7,7,1000,4,5};
-    std::vector<uint16_t> val_b = {2,8,9,9,4,5};
-    std::vector<uint16_t> val_c = {3,8,9,9,4,5};
-    IntString test_a, test_b, test_c;
-    for (const auto v : val_a) {
-        seqan::appendValue(test_a, v);
+std::vector<IntegerSequence> read_integer_sequences_from_file(const std::string &input_fp) {
+    // TODO: better file handling, catch literally any exception instead of allowing prog to segfault
+    // Declare return value
+    std::vector<IntegerSequence> integer_sequences;
+    // Read data into structs
+    FILE *input_fh = fopen(input_fp.c_str(), "r");
+    char line[MAXLINESZ];
+    size_t position = 0;
+    while(fgets(line, MAXLINESZ, input_fh)) {
+        // First pop sequence name from line
+        IntegerSequence integer_sequence;
+        std::string line_string(line), token;
+        position = line_string.find(",");
+        integer_sequence.name = line_string.substr(0, position);
+        line_string.erase(0, position + 1);
+        while ((position = line_string.find(",")) != std::string::npos) {
+            // Convert string token to integer and clip from line string
+            token = line_string.substr(0, position);
+            integer_sequence.data.push_back(std::stoi(token));
+            line_string.erase(0, position + 1);
+        }
+        // Add last element
+        integer_sequence.data.push_back(std::stoi(line_string));
+        // Update return vector with new integer sequence
+        integer_sequences.push_back(integer_sequence);
     }
-    for (const auto v : val_b) {
-        seqan::appendValue(test_b, v);
+    fclose(input_fh);
+    return integer_sequences;
+}
+
+seqan::StringSet<IntegerString> prepare_alignment_data(const std::vector<IntegerSequence> &integer_sequences) {
+    // TODO: there is many copies here - could be more efficient
+    seqan::StringSet<IntegerString> integer_set;
+    for (const auto& integer_sequence : integer_sequences) {
+        IntegerString integer_string;
+        for (const auto& v : integer_sequence.data) {
+            seqan::appendValue(integer_string, v);
+        }
+        seqan::appendValue(integer_set, integer_string);
     }
-    for (const auto v : val_c) {
-        seqan::appendValue(test_c, v);
-    }
+    return integer_set;
+}
 
-    seqan::StringSet<IntString> intSet;
-    seqan::appendValue(intSet, test_a);
-    seqan::appendValue(intSet, test_b);
-    seqan::appendValue(intSet, test_c);
+seqan::Align<IntegerString> perform_alignment(seqan::StringSet<IntegerString> &integer_set) {
+    seqan::Align<IntegerString> alignment(integer_set);
+    seqan::globalMsaAlignment(alignment, seqan::EditDistanceScore());
+    return alignment;
+}
 
-    // Perform alignment
-    seqan::Align<IntString> align_int(intSet);
-    seqan::globalMsaAlignment(align_int, seqan::EditDistanceScore());
-
-    // Write out alignment
-    typedef seqan::Align<IntString> const TAlign;
+void write_alignment(const seqan::Align<IntegerString> &alignment, const std::vector<IntegerSequence> &integer_sequences, const std::string &output_fp) {
+    // Needed for readable code
+    typedef seqan::Align<IntegerString> const TAlign;
     typedef typename seqan::Position<typename seqan::Rows<TAlign>::Type>::Type TRowsPosition;
     typedef typename seqan::Position<TAlign>::Type TPosition;
-
-    TRowsPosition row_count = seqan::length(seqan::rows(align_int));
-    TPosition end_ = std::min(seqan::length(seqan::row(align_int, 0)), seqan::length(seqan::row(align_int, 1)));
-
-    for (long unsigned int i = 0; i < 2 * row_count - 1; ++i) {
-        // Print integers
-        if ((i % 2) == 0) {
-            auto & row_ = seqan::row(align_int, i / 2);
-            typedef typename seqan::Iterator<typename seqan::Row<TAlign>::Type const, seqan::Standard>::Type TIter;
-            TIter begin1_ = iter(row_, 0);
-            TIter end1_ = iter(row_, end_);
-            for (; begin1_ != end1_; ++begin1_) {
-                if (begin1_._sourcePosition > 0) fprintf(stdout, "\t");
-                if (seqan::isGap(begin1_)) {
-                    fprintf(stdout, "-");
-                } else {
-                    uint16_t value = (begin1_._container->_source.data_value->data_begin+begin1_._sourcePosition)->value;
-                    fprintf(stdout, "%d", value);
-                }
-            }
-        // Aligned status (match, gap, non-match)
-        } else {
-            for (unsigned int j = 0; j < end_; ++j) {
-                if (j > 0) fprintf(stdout, "\t");
-                if ((!seqan::isGap(seqan::row(align_int, (i - 1) / 2), j)) &&
-                    (!seqan::isGap(seqan::row(align_int, (i + 1) / 2), j)) &&
-                    (seqan::row(align_int, (i - 1) / 2)[j] == seqan::row(align_int, (i + 1) / 2)[j])) {
-                    fprintf(stdout, "|");
-                } else {
-                    fprintf(stdout, " ");
-                }
+    typedef typename seqan::Iterator<typename seqan::Row<TAlign>::Type const, seqan::Standard>::Type TIter;
+    // Iterate and write result
+    FILE *output_fh = fopen(output_fp.c_str(), "w");
+    TRowsPosition row_count = seqan::length(seqan::rows(alignment));
+    TPosition end_position = std::min(seqan::length(seqan::row(alignment, 0)), seqan::length(seqan::row(alignment, 1)));
+    // Iterate rows
+    for (long unsigned int i = 0; i < row_count; ++i) {
+        // Print sequence name
+        fprintf(output_fh, "%s", integer_sequences[i].name.c_str());
+        // Iterate integers of row
+        auto& row_data = seqan::row(alignment, i);
+        TIter row_iter = iter(row_data, 0);
+        for (int j = 0; row_iter != iter(row_data, end_position); ++row_iter, ++j) {
+            if (seqan::isGap(row_iter)) {
+                fprintf(output_fh, "\t-");
+            } else {
+                // TODO: there's probably a better way than this ¯\_(ツ)_/¯
+                uint16_t value = (row_iter._container->_source.data_value->data_begin+row_iter._sourcePosition)->value;
+                fprintf(output_fh, "\t%d", value);
             }
         }
-        fprintf(stdout, "\n");
+        fprintf(output_fh, "\n");
     }
-    fprintf(stdout, "\n");
-
-    return 0;
+    fclose(output_fh);
 }
