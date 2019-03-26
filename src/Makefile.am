@@ -1,5 +1,5 @@
 # Build flags
-AM_CXXFLAGS = -std=c++14 -Wall -Wextra -fopenmp
+AM_CXXFLAGS = -std=c++14 -Wall -Wextra
 AM_CPPFLAGS = -I$(top_srcdir)/include -isystem$(top_srcdir)/external
 
 # Sources for ELF and static library

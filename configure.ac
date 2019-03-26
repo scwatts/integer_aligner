@@ -3,8 +3,6 @@ AC_INIT([integer_aligner], [0.0.1], [s.watts2@student.unimelb.edu.au])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror subdir-objects])
 
 # Check out required programs and libraries
-AC_PROG_RANLIB
-AM_PROG_AR
 AC_PROG_CXX
 
 # Set config header output
