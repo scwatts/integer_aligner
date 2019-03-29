@@ -6,6 +6,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -isystem$(top_srcdir)/external
 sources = \
  		  aligner.cpp \
  		  aligner_opts.cpp \
+ 		  ../include/aligner.h \
  		  ../include/aligner_opts.h
 
 # ELF
