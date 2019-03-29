@@ -1,0 +1,23 @@
+language: cpp
+compiler: g++
+dist: trusty
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - autoconf
+      - automake
+      - g++-5
+
+branches:
+  only:
+    master
+
+script:
+  - export CXX='g++-5'
+  - ./autogen.sh
+  - ./configure
+  - make -j4
+  - ./src/integer_aligner --help
