@@ -8,8 +8,8 @@ int main(int argc, char *argv[]) {
     std::vector<IntegerSequence> integer_sequences = read_integer_sequences_from_file(args.input_fp);
     seqan::StringSet<IntegerString> integer_set = prepare_alignment_data(integer_sequences);
     // Perform alignment and write out
-    seqan::Align<IntegerString> alignment = perform_alignment(integer_set);
-    write_alignment(alignment, integer_sequences, args.output_fp);
+    GraphData graph_data = perform_alignment(integer_set, args.scoring_scheme);
+    write_alignment(graph_data.graph, integer_sequences, args.output_fp);
     return 0;
 }
 
@@ -44,7 +44,7 @@ std::vector<IntegerSequence> read_integer_sequences_from_file(const std::string 
 }
 
 seqan::StringSet<IntegerString> prepare_alignment_data(const std::vector<IntegerSequence> &integer_sequences) {
-    // TODO: there is many copies here - could be more efficient
+    // TODO: there are many copies here - could be more efficient
     seqan::StringSet<IntegerString> integer_set;
     for (const auto& integer_sequence : integer_sequences) {
         IntegerString integer_string;
@@ -56,12 +56,23 @@ seqan::StringSet<IntegerString> prepare_alignment_data(const std::vector<Integer
     return integer_set;
 }
 
-seqan::Align<IntegerString> perform_alignment(seqan::StringSet<IntegerString> &integer_set) {
-    seqan::Align<IntegerString> alignment(integer_set);
-    // TODO: demonstrate different scoring params (seqan/score/score_simple.h#L80)
-    seqan::Score<int> scoring_scheme(5, -6, -2, -11);
-    seqan::globalMsaAlignment(alignment, scoring_scheme);
-    return alignment;
+GraphData perform_alignment(IntegerStringSet &integer_set, const arguments::ScoringScheme score) {
+    // Place graph data into struct, stringSet must stay in scope
+    GraphData graph_data = {IntegerAlignGraph(integer_set), seqan::stringSet(graph_data.graph)};
+    // Create name array
+    seqan::String<seqan::String<char>> names;
+    seqan::resize(names, seqan::length(graph_data.sequence_set), seqan::String<char>("empty"));
+    // Set options - run pairwise global and local, and overlap, and longest subsequence
+    seqan::MsaOptions<IntegerString, seqan::Score<int>> msa_options;
+    msa_options.sc = seqan::Score<int>(score.match, score.mismatch, score.gapextend, score.gapopen);
+    seqan::appendValue(msa_options.method, 0);  // Global pairwise
+    // TODO: explicitly set alphabet size to use local pairwise
+    //seqan::appendValue(msa_options.method, 1);  // Local pairwise
+    //seqan::appendValue(msa_options.method, 2);  // Overlap
+    //seqan::appendValue(msa_options.method, 3);  // Longest subsequence
+    // Align
+    seqan::globalMsaAlignment(graph_data.graph, graph_data.sequence_set, names, msa_options);
+    return graph_data;
 }
 
 void write_alignment(const seqan::Align<IntegerString> &alignment, const std::vector<IntegerSequence> &integer_sequences, const std::string &output_fp) {
