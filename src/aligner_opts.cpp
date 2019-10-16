@@ -12,11 +12,20 @@ void print_help(FILE *stdst) {
     fprintf(stdst, "Usage:\n");
     fprintf(stdst, "  integer_aligner [options]\n");
     fprintf(stdst, "\n");
-    fprintf(stdst, "Options:\n");
+    fprintf(stdst, "IO:\n");
     fprintf(stdst, "    -i <filepath>, --input_fp <filepath>\n");
     fprintf(stdst, "                    Input alignment file containing integers to align\n");
     fprintf(stdst, "    -o <filepath>, --output_fp <filepath>\n");
     fprintf(stdst, "                    output filepath for aligned integers\n");
+    fprintf(stdst, "Scoring:\n");
+    fprintf(stdst, "    -a <int>, --match <int>\n");
+    fprintf(stdst, "                    Match score (default: 0)\n");
+    fprintf(stdst, "    -b <int>, --mismatch <int>\n");
+    fprintf(stdst, "                    Mismatch score (default: -2)\n");
+    fprintf(stdst, "    -c <int>, --gapextend <int>\n");
+    fprintf(stdst, "                    Gap extend score (default: -1)\n");
+    fprintf(stdst, "    -d <int>, --gapopen <int>\n");
+    fprintf(stdst, "                    Gap open score (default: -2)\n");
     fprintf(stdst, "\n");
     fprintf(stdst, "Other:\n");
     fprintf(stdst, "  -h, --help\n");
@@ -38,6 +47,11 @@ Arguments get_arguments(int argc, char **argv) {
         {
             {"input_fp", required_argument, NULL, 'i'},
             {"output_fp", required_argument, NULL, 'o'},
+            {"match", optional_argument, NULL, 'a'},
+            {"mismatch", optional_argument, NULL, 'b'},
+            {"gapextend", optional_argument, NULL, 'c'},
+            {"gapopen", optional_argument, NULL, 'd'},
+            {"output_fp", required_argument, NULL, 'o'},
             {"version", no_argument, NULL, 'v'},
             {"help", no_argument, NULL, 'h'},
             {NULL, 0, 0, 0}
@@ -50,7 +64,7 @@ Arguments get_arguments(int argc, char **argv) {
         int c;
 
         // Parser
-        c = getopt_long(argc, argv, "i:o:vh", long_options, &long_options_index);
+        c = getopt_long(argc, argv, "i:o:a:b:c:d:vh", long_options, &long_options_index);
 
         // If no more arguments to parse, break
         if (c == -1) {
@@ -64,6 +78,18 @@ Arguments get_arguments(int argc, char **argv) {
                 break;
             case 'o':
                 args.output_fp = optarg;
+                break;
+            case 'a':
+                args.scoring_scheme.match = int_from_optarg(optarg);
+                break;
+            case 'b':
+                args.scoring_scheme.mismatch = int_from_optarg(optarg);
+                break;
+            case 'c':
+                args.scoring_scheme.gapextend = int_from_optarg(optarg);
+                break;
+            case 'd':
+                args.scoring_scheme.gapopen = int_from_optarg(optarg);
                 break;
             case 'v':
                 print_version(stdout);
@@ -89,6 +115,21 @@ Arguments get_arguments(int argc, char **argv) {
     }
 
     return args;
+}
+
+
+int int_from_optarg(const char *optarg) {
+    // Check at most the first 8 characters are numerical
+    std::string optstring(optarg);
+    int offset = (optstring.at(0) == '-') ? 1 : 0;
+    std::string string_int = optstring.substr(0, 8-offset);
+    for (std::string::iterator it = string_int.begin()+offset; it != string_int.end(); ++it) {
+        if (!isdigit(*it)) {
+            fprintf(stderr, "This doesn't look like a usable integer: %s\n", optarg);
+            exit(1);
+        }
+    }
+    return std::atoi(string_int.c_str());
 }
 
 
