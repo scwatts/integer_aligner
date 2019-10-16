@@ -1,5 +1,5 @@
 # Initialisation
-AC_INIT([integer_aligner], [0.0.1], [s.watts2@student.unimelb.edu.au])
+AC_INIT([integer_aligner], [0.0.2], [s.watts2@student.unimelb.edu.au])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror subdir-objects])
 
 # Check out required programs and libraries
