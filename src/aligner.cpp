@@ -1,6 +1,9 @@
 #include "aligner.h"
 
 
+#define OFFSET 0xFF
+
+
 int main(int argc, char *argv[]) {
     // Get command line arguments
     arguments::Arguments args = arguments::get_arguments(argc, argv);
@@ -31,11 +34,11 @@ std::vector<IntegerSequence> read_integer_sequences_from_file(const std::string 
         while ((position = line_string.find(",")) != std::string::npos) {
             // Convert string token to integer and clip from line string
             token = line_string.substr(0, position);
-            integer_sequence.data.push_back(std::stoi(token));
             line_string.erase(0, position + 1);
+            // Convert and shift into non-ascii range
+            integer_sequence.data.push_back(std::stoi(token) + OFFSET);
         }
-        // Add last element
-        integer_sequence.data.push_back(std::stoi(line_string));
+        integer_sequence.data.push_back(std::stoi(line_string) + OFFSET);
         // Update return vector with new integer sequence
         integer_sequences.push_back(integer_sequence);
     }
@@ -75,30 +78,25 @@ GraphData perform_alignment(IntegerStringSet &integer_set, const arguments::Scor
     return graph_data;
 }
 
-void write_alignment(const seqan::Align<IntegerString> &alignment, const std::vector<IntegerSequence> &integer_sequences, const std::string &output_fp) {
-    // Needed for readable code
-    typedef seqan::Align<IntegerString> const TAlign;
-    typedef typename seqan::Position<typename seqan::Rows<TAlign>::Type>::Type TRowsPosition;
-    typedef typename seqan::Position<TAlign>::Type TPosition;
-    typedef typename seqan::Iterator<typename seqan::Row<TAlign>::Type const, seqan::Standard>::Type TIter;
-    // Iterate and write result
+void write_alignment(const IntegerAlignGraph &graph, const std::vector<IntegerSequence> integer_sequences, const std::string &output_fp) {
+    // Typedefs
+    typedef typename seqan::Size<IntegerAlignGraph>::Type TSize;
+    // Create alignment matrix from graphical alignment
+    IntegerString alignment;
+    seqan::convertAlignment(graph, alignment);
+    // Write sequences
     FILE *output_fh = fopen(output_fp.c_str(), "w");
-    TRowsPosition row_count = seqan::length(seqan::rows(alignment));
-    TPosition end_position = std::min(seqan::length(seqan::row(alignment, 0)), seqan::length(seqan::row(alignment, 1)));
-    // Iterate rows
-    for (long unsigned int i = 0; i < row_count; ++i) {
-        // Print sequence name
-        fprintf(output_fh, "%s", integer_sequences[i].name.c_str());
-        // Iterate integers of row
-        auto& row_data = seqan::row(alignment, i);
-        TIter row_iter = iter(row_data, 0);
-        for (int j = 0; row_iter != iter(row_data, end_position); ++row_iter, ++j) {
-            if (seqan::isGap(row_iter)) {
+    TSize rows = seqan::length(seqan::stringSet(graph));
+    TSize cols = seqan::length(alignment) / rows;
+    for (TSize row = 0; row < rows; ++row) {
+        fprintf(output_fh, integer_sequences[row].name.c_str());
+        for (TSize col = 0; col < cols; ++col) {
+            uint16_t value = alignment[row * cols + col];
+            // Print gaps or values; ascii 45 == '-'
+            if (value == 45) {
                 fprintf(output_fh, "\t-");
             } else {
-                // TODO: there's probably a better way than this ¯\_(ツ)_/¯
-                uint16_t value = (row_iter._container->_source.data_value->data_begin+row_iter._sourcePosition)->value;
-                fprintf(output_fh, "\t%d", value);
+                fprintf(output_fh, "\t%d", value - OFFSET);
             }
         }
         fprintf(output_fh, "\n");
