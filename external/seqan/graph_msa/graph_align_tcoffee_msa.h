@@ -339,7 +339,7 @@ void globalMsaAlignment(Graph<Alignment<TStringSet, TCargo, TSpec> > & gAlign,
     // Some alignment constants
     TStringSet & seqSet = stringSet(gAlign);
     TSize nSeq = length(seqSet);
-    bool isDeepAlignment = (nSeq >= 50);  // threshold for what is a deep alignment
+    bool isDeepAlignment = false;
     TSize threshold = (isDeepAlignment) ? 30 : 10;  // experimentally proved relation
 #ifdef SEQAN_TCOFFEE_DEBUG
     std::cout << std::setw(30) << std::left << "Number of sequences: " << std::setw(10) << std::right << nSeq << std::endl;
