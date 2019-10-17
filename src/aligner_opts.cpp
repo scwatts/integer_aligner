@@ -17,6 +17,11 @@ void print_help(FILE *stdst) {
     fprintf(stdst, "                    Input alignment file containing integers to align\n");
     fprintf(stdst, "    -o <filepath>, --output_fp <filepath>\n");
     fprintf(stdst, "                    output filepath for aligned integers\n");
+    fprintf(stdst, "\n");
+    fprintf(stdst, "Alignment:\n");
+    fprintf(stdst, "    -g, --global\n");
+    fprintf(stdst, "                    Use global alignment (default: false)\n");
+    fprintf(stdst, "\n");
     fprintf(stdst, "Scoring:\n");
     fprintf(stdst, "    -a <int>, --match <int>\n");
     fprintf(stdst, "                    Match score (default: 0)\n");
@@ -47,6 +52,7 @@ Arguments get_arguments(int argc, char **argv) {
         {
             {"input_fp", required_argument, NULL, 'i'},
             {"output_fp", required_argument, NULL, 'o'},
+            {"global", no_argument, NULL, 'g'},
             {"match", optional_argument, NULL, 'a'},
             {"mismatch", optional_argument, NULL, 'b'},
             {"gapextend", optional_argument, NULL, 'c'},
@@ -64,7 +70,7 @@ Arguments get_arguments(int argc, char **argv) {
         int c;
 
         // Parser
-        c = getopt_long(argc, argv, "i:o:a:b:c:d:vh", long_options, &long_options_index);
+        c = getopt_long(argc, argv, "i:o:ga:b:c:d:vh", long_options, &long_options_index);
 
         // If no more arguments to parse, break
         if (c == -1) {
@@ -78,6 +84,9 @@ Arguments get_arguments(int argc, char **argv) {
                 break;
             case 'o':
                 args.output_fp = optarg;
+                break;
+            case 'g':
+                args.use_global = true;
                 break;
             case 'a':
                 args.scoring_scheme.match = int_from_optarg(optarg);

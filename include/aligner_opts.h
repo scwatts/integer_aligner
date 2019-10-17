@@ -27,6 +27,7 @@ struct Arguments {
     std::string input_fp;
     std::string output_fp;
     ScoringScheme scoring_scheme;
+    bool use_global = false;
 };
 
 void print_help(FILE *stdst);
